@@ -1,0 +1,127 @@
+#include<ESP8266WiFi.h> //wifi library
+
+const char* ssid="veda"; // provide ssid and password 
+const char* password="veda1902";
+
+WiFiServer server(80); //Wifi server creation
+
+String header; //to store HTTP request
+
+String output5State = "off";
+
+//declare variables for output 
+
+const int output5=5;
+
+void setup()
+{
+Serial.begin(9600); //begin serial communication at baud rate of 115200
+
+pinMode(output5,1); //declare pin 0,1 as output
+
+digitalWrite(output5,0); //provide logic zero to both pins
+
+//establishing wifi
+Serial.print("Connecting to..");
+Serial.print(ssid);
+WiFi.begin(ssid,password);
+
+while(WiFi.status() !=WL_CONNECTED)
+{
+delay(500);
+Serial.print(".");
+}
+//printing local IP
+Serial.println("");
+Serial.println("WIFI connected");
+Serial.println("IP address:");
+Serial.println(WiFi.localIP());
+server.begin();
+}
+
+void loop()
+{
+WiFiClient client=server.available(); //creating incoming client 
+
+if(client) {//If a new client connects,
+Serial.println("New Client.");//print a message out in the serial port
+
+String currentLine= ""; // make a String to hold incoming data from the client 
+
+while(client.connected()){//loop while the client's connected
+if(client.available()){ //if there's byte to read from the client,
+char c=client.read(); // read a byte,then
+Serial.write(c); //print it out the serial monitor
+header +=c;
+if(c=='\n'){//if the byte is a newline charater // if the current line is blank, you got newline charaters in a row.
+//that's the end of the client knows what's coming. then a blank line:
+
+if(currentLine.length()== 0)
+{
+client.println("HTTP/1.1 200 OK");
+client.println("Content-type:text/html");
+client.println("Connection:close");
+client.println();
+
+//turns the GPIOs on and off
+
+if(header.indexOf("GET /5/on") >=0){
+Serial.println("GPIO 5 on");
+output5State="on";
+digitalWrite(output5,1);
+}
+
+else if(header.indexOf("GET /5/off") >=0)
+{
+Serial.print("GPIO 5 off");
+output5State="off";
+digitalWrite(output5,0);
+}
+
+client.println("<!DOCTYPE html<html>");
+client.println("<head><meta name=\"viewport\"content\"width=device-width,intial-scale=1\">");
+client.println("<link rel=\"icon\" href=\"data:,\">");
+
+client.println("<style>html{font family:Times new roman; display: inline-block; margin: 0px auto; text align; center;}");
+
+client.println(".button{background color: #195B8B; border:none; color:blue; paddling: 16px 40px;");
+
+client.println("text-decoration: none; font-size;30px; margin; 2px; cursor:pointer;}");
+
+client.println(".button2{background-color: #77878A;}</style></head>");
+//web page title
+
+client.println("<body bgcolor=\"#000000\"><h1><font color=\"#FFFF02\">Welcome to smart home solutions</font></h1>");
+
+client.println("<p><font color=\"#FFFFFF\">GPIO 5- State " + output5State + "</font></p>");
+
+if(output5State=="off"){
+client.println("<p><a href=\"/5/on\"><button class=\"button\">ON</button></a></p>");
+}
+else{
+client.println("<p><a href=\"/5/off\"><button class=\"button2\">OFF</button></a></p>");
+}
+
+client.println("</body></html>");
+
+client.println();
+break;
+}
+else
+{
+currentLine ="";
+}
+}
+else if (c !='\r')
+{
+currentLine +=c;
+}
+}
+}
+header ="";
+client.stop();
+Serial.println("Client disconnected.");
+Serial.println("");
+
+}
+}
